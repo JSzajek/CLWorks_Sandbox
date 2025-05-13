@@ -38,10 +38,10 @@ void ADemoActor::CreateTexture2D()
 	// Create a texture in UE
 	if (!mpTexture2D)
 	{
-		mpTexture2D = cltexture.CreateUTexture2D(queue);
+		mpTexture2D = cltexture.CreateUTexture2D(queue, mGenerateMips);
 	}
 	else
 	{
-		cltexture.UploadToUTexture2D(mpTexture2D, queue);
+		cltexture.UploadToUTexture2D(mpTexture2D, queue, mGenerateMips);
 	}
 }

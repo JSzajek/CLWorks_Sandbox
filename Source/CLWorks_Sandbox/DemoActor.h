@@ -28,6 +28,9 @@ public:
 
 	UPROPERTY(EditAnywhere, Category = "CL|Texture")
 	uint32 mTextureHeight = 0;
+
+	UPROPERTY(EditAnywhere, Category = "CL|Texture")
+	bool mGenerateMips = false;
 private:
 	OpenCL::Device mDevice;
 };
