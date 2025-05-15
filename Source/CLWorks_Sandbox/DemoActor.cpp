@@ -8,14 +8,14 @@ ADemoActor::ADemoActor()
 void ADemoActor::CreateTexture2D()
 {
 	OpenCL::Context context(mDevice);
-	OpenCL::Program program(mDevice, context);
+	OpenCL::Program program(context, mDevice);
 
 	OpenCL::Image cltexture(context,
 							mDevice,
 							mTextureWidth, 
 							mTextureHeight, 
 							1,		
-							OpenCL::Image::Format::RGBA8, 
+							OpenCL::Image::Format::RGBA32F, 
 							OpenCL::Image::Type::Texture2D);
 
 	program.ReadFromString("__kernel void write_color_img(read_write image2d_t output, __global const float* write_color)\n" 
