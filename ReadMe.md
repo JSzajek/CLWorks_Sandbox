@@ -8,15 +8,14 @@ CLWorks_Sandbox is a sample Unreal Engine project showcasing how to use the CLWo
 - Writing to OpenCL images and conversion to UTextures.
 - Real-time updates to materials or UI from OpenCL results.
 
-### Installation
+## Examples
 
-### Key Components
 
-### Requirements
+## Requirements
  - Unreal Engine 5.0+.
  - CLWorks Plugin.
  - OpenCL 1.2 or later (avaliable via CPU or GPU drivers).
  - C++20 compatible compiler.
 
- ### License
+## License
 Licenses Under the **Apache 2.0** License.
