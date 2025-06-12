@@ -22,12 +22,18 @@ public:
 
 	UFUNCTION(CallInEditor, BlueprintCallable, Category = "CL")
 	void CreateTexture2DArray();
+
+	UFUNCTION(CallInEditor, BlueprintCallable, Category = "CL")
+	void CopyTexture2DToRenderTarget2D();
 public:
 	UPROPERTY(VisibleAnywhere, Transient, Category = "CL")
 	TObjectPtr<UTexture2D> mpTexture2D = nullptr;
 
 	UPROPERTY(VisibleAnywhere, Transient, Category = "CL")
 	TObjectPtr<UTexture2DArray> mpTexture2DArray = nullptr;
+
+	UPROPERTY(EditAnywhere, Category = "CL")
+	TObjectPtr<UTextureRenderTarget2D> mpTargetRenderTarget2D = nullptr;
 
 	UPROPERTY(EditAnywhere, Category = "CL|Texture")
 	FLinearColor mWriteColor;
@@ -43,6 +49,9 @@ public:
 
 	UPROPERTY(EditAnywhere, Category = "CL|Texture")
 	bool mGenerateMips = false;
+
+	UPROPERTY(EditAnywhere, Category = "CL|Texture")
+	bool mIsAsyncGen = false;
 private:
 	OpenCL::Device mDevice;
 };
