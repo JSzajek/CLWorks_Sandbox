@@ -7,6 +7,8 @@
 ADemoActor::ADemoActor()
 {
 	mWriteColor = FLinearColor::Red;
+
+	mpDevice = OpenCL::MakeDevice();
 }
 
 void ADemoActor::ClearTexture()
@@ -26,11 +28,11 @@ void ADemoActor::ClearTexture()
 
 void ADemoActor::CreateTexture2D()
 {
-	OpenCL::Context context(mDevice);
-	OpenCL::Program program(context, mDevice);
+	OpenCL::ContextPtr context = MakeContext(mpDevice);
+	OpenCL::Program program(context, mpDevice);
 
 	OpenCL::Image cltexture(context,
-							mDevice,
+							mpDevice,
 							mTextureWidth, 
 							mTextureHeight, 
 							1,		
@@ -43,13 +45,13 @@ void ADemoActor::CreateTexture2D()
 						   "  write_imagef(output, coord, color); }");
 
 	OpenCL::Kernel kernel(program, "write_color_img");
-	OpenCL::CommandQueue queue(context, mDevice);
+	OpenCL::CommandQueue queue(context, mpDevice);
 
 	float writeColor[4] = { mWriteColor.R, mWriteColor.G, mWriteColor.B, mWriteColor.A };
-	OpenCL::Buffer colorBuffer(context, writeColor, 4 * sizeof(float), OpenCL::AccessType::READ_ONLY);
+	OpenCL::Buffer colorBuffer(mpDevice, context, writeColor, 4 * sizeof(float), OpenCL::AccessType::WRITE_ONLY, OpenCL::MemoryStrategy::COPY_ONCE);
 
 	kernel.SetArgument(0, cltexture.Get());
-	kernel.SetArgument<cl_mem>(1, colorBuffer);
+	kernel.SetArgument<OpenCL::Buffer>(1, colorBuffer);
 
 	size_t global_work_size[2] = { mTextureWidth, mTextureHeight };
 	queue.EnqueueRange(kernel, 2, global_work_size);
@@ -57,7 +59,7 @@ void ADemoActor::CreateTexture2D()
 	// Create a texture in UE
 	if (!mpTexture2D)
 	{
-		mpTexture2D = cltexture.CreateUTexture2D(queue, mGenerateMips, mIsAsyncGen);
+		mpTexture2D = cltexture.CreateUTexture2D(queue, mIsSRGB, mGenerateMips, mIsAsyncGen);
 	}
 	else
 	{
@@ -67,11 +69,11 @@ void ADemoActor::CreateTexture2D()
 
 void ADemoActor::CreateTexture2DArray()
 {
-	OpenCL::Context context(mDevice);
-	OpenCL::Program program(context, mDevice);
+	OpenCL::ContextPtr context = MakeContext(mpDevice);
+	OpenCL::Program program(context, mpDevice);
 
 	OpenCL::Image cltexture(context,
-							mDevice,
+							mpDevice,
 							mTextureWidth, 
 							mTextureHeight, 
 							mTextureLayers,		
@@ -85,13 +87,13 @@ void ADemoActor::CreateTexture2DArray()
 						   "  write_imagef(output, coord, color); }");
 
 	OpenCL::Kernel kernel(program, "write_color_img");
-	OpenCL::CommandQueue queue(context, mDevice);
+	OpenCL::CommandQueue queue(context, mpDevice);
 
 	float writeColor[4] = { mWriteColor.R, mWriteColor.G, mWriteColor.B, mWriteColor.A };
-	OpenCL::Buffer colorBuffer(context, writeColor, 4 * sizeof(float), OpenCL::AccessType::READ_ONLY);
+	OpenCL::Buffer colorBuffer(mpDevice, context, writeColor, 4 * sizeof(float), OpenCL::AccessType::WRITE_ONLY, OpenCL::MemoryStrategy::COPY_ONCE);
 
 	kernel.SetArgument(0, cltexture.Get());
-	kernel.SetArgument<cl_mem>(1, colorBuffer);
+	kernel.SetArgument<OpenCL::Buffer>(1, colorBuffer);
 	kernel.SetArgument(2, static_cast<float>(mTextureLayers));
 
 	size_t global_work_size[3] = { mTextureWidth, mTextureHeight, mTextureLayers };
@@ -100,7 +102,7 @@ void ADemoActor::CreateTexture2DArray()
 	// Create a texture in UE
 	if (!mpTexture2DArray)
 	{
-		mpTexture2DArray = cltexture.CreateUTexture2DArray(queue, mGenerateMips);
+		mpTexture2DArray = cltexture.CreateUTexture2DArray(queue, mIsSRGB, mGenerateMips);
 	}
 	else
 	{
@@ -113,11 +115,11 @@ void ADemoActor::CopyTexture2DToRenderTarget2D()
 	if (!mpTargetRenderTarget2D)
 		return;
 
-	OpenCL::Context context(mDevice);
-	OpenCL::Program program(context, mDevice);
+	OpenCL::ContextPtr context = MakeContext(mpDevice);
+	OpenCL::Program program(context, mpDevice);
 
 	OpenCL::Image cltexture(context,
-							mDevice,
+							mpDevice,
 							mTextureWidth, 
 							mTextureHeight, 
 							1,		
@@ -130,13 +132,13 @@ void ADemoActor::CopyTexture2DToRenderTarget2D()
 						   "  write_imagef(output, coord, color); }");
 
 	OpenCL::Kernel kernel(program, "write_color_img");
-	OpenCL::CommandQueue queue(context, mDevice);
+	OpenCL::CommandQueue queue(context, mpDevice);
 
 	float writeColor[4] = { mWriteColor.R, mWriteColor.G, mWriteColor.B, mWriteColor.A };
-	OpenCL::Buffer colorBuffer(context, writeColor, 4 * sizeof(float), OpenCL::AccessType::READ_ONLY);
+	OpenCL::Buffer colorBuffer(mpDevice, context, writeColor, 4 * sizeof(float), OpenCL::AccessType::WRITE_ONLY, OpenCL::MemoryStrategy::COPY_ONCE);
 
 	kernel.SetArgument(0, cltexture.Get());
-	kernel.SetArgument<cl_mem>(1, colorBuffer);
+	kernel.SetArgument<OpenCL::Buffer>(1, colorBuffer);
 
 	size_t global_work_size[2] = { mTextureWidth, mTextureHeight };
 	queue.EnqueueRange(kernel, 2, global_work_size);

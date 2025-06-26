@@ -51,7 +51,10 @@ public:
 	bool mGenerateMips = false;
 
 	UPROPERTY(EditAnywhere, Category = "CL|Texture")
+	bool mIsSRGB = true;
+
+	UPROPERTY(EditAnywhere, Category = "CL|Texture")
 	bool mIsAsyncGen = false;
 private:
-	OpenCL::Device mDevice;
+	OpenCL::DevicePtr mpDevice;
 };
