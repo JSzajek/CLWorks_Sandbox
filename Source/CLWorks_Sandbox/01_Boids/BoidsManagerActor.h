@@ -69,6 +69,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Boids")
 	bool mUseInstancing = false;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Boids|Debug")
+	bool mDrawBounds = false;
+
 	UPROPERTY(VisibleAnywhere, Category = "Boids|Debug")
 	TArray<FVector4f> mPositions;
 

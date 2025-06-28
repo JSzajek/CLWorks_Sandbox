@@ -131,8 +131,11 @@ void ABoidsManagerActor::TickActor(float DeltaTime,
 {
 	Super::TickActor(DeltaTime, TickType, ThisTickFunction);
 
-	UWorld* world = GetWorld();
-	DrawDebugBox(world, mBounds.GetCenter(), mBounds.GetExtent(), FColor::Cyan, false);
+	if (mDrawBounds)
+	{
+		UWorld* world = GetWorld();
+		DrawDebugBox(world, mBounds.GetCenter(), mBounds.GetExtent(), FColor::Cyan, false);
+	}
 
 	if (mpKernel)
 	{

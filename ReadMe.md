@@ -9,7 +9,8 @@ CLWorks_Sandbox is a sample Unreal Engine project showcasing how to use the CLWo
 - Real-time updates to materials or UI from OpenCL results.
 
 ## Examples
-
+### Boids
+<img src="/Resources/01_Boids.gif" alt="Boids Gif" width="512"/>
 
 ## Requirements
  - Unreal Engine 5.0+.
