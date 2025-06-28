@@ -8,6 +8,7 @@
 *.vcxproj.filters
 *.vsconfig
 *.sln
+*.blend1
 
 
 .vs/
