@@ -14,7 +14,7 @@ class ABoidsManagerActor : public AActor
 	GENERATED_BODY()
 public:
 	ABoidsManagerActor();
-
+public:
 	virtual void BeginPlay() override;
 	virtual void BeginDestroy() override;
 

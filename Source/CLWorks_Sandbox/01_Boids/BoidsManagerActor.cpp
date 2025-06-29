@@ -121,8 +121,6 @@ void ABoidsManagerActor::BeginPlay()
 void ABoidsManagerActor::BeginDestroy()
 {
 	Super::BeginDestroy();
-
-
 }
 
 void ABoidsManagerActor::TickActor(float DeltaTime, 
