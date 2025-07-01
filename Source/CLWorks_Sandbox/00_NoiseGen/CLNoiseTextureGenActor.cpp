@@ -6,17 +6,20 @@ ACLNoiseTextureGenActor::ACLNoiseTextureGenActor()
 {
 	PrimaryActorTick.bCanEverTick = true;
 
-	mpDevice = OpenCL::MakeDevice();
-	mpContext = MakeContext(mpDevice);
-
-	mpQueue = std::make_unique<OpenCL::CommandQueue>(mpContext, mpDevice);
-
-	mpProgram = std::make_unique<OpenCL::Program>(mpContext, mpDevice);
+	
 }
 
 void ACLNoiseTextureGenActor::BeginPlay()
 {
 	Super::BeginPlay();
+
+	// OpenCL Dependencies Initialization -------------------------------------
+	mpDevice = OpenCL::MakeDevice();
+	mpContext = MakeContext(mpDevice);
+
+	mpQueue = std::make_unique<OpenCL::CommandQueue>(mpContext, mpDevice);
+	mpProgram = std::make_unique<OpenCL::Program>(mpContext, mpDevice);
+	// ------------------------------------------------------------------------
 
 	if (mTextureSize > 0)
 	{
@@ -41,6 +44,14 @@ void ACLNoiseTextureGenActor::BeginPlay()
 
 void ACLNoiseTextureGenActor::BeginDestroy()
 {
+	mpImage = nullptr;
+
+	mpKernel = nullptr;
+	mpProgram = nullptr;
+
+	mpContext = nullptr;
+	mpDevice = nullptr;
+
 	Super::BeginDestroy();
 }
 

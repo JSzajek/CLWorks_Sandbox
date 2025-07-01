@@ -9,13 +9,6 @@ ABoidsManagerActor::ABoidsManagerActor()
 {
 	PrimaryActorTick.bCanEverTick = true;
 
-	mpDevice = OpenCL::MakeDevice();
-	mpContext = MakeContext(mpDevice);
-
-	mpQueue = std::make_unique<OpenCL::CommandQueue>(mpContext, mpDevice);
-
-	mpProgram = std::make_unique<OpenCL::Program>(mpContext, mpDevice);
-
 	mBounds = FBox(EForceInit::ForceInitToZero);
 }
 
@@ -23,6 +16,13 @@ void ABoidsManagerActor::BeginPlay()
 {
 	Super::BeginPlay();
 
+	// OpenCL Dependencies Initialization -------------------------------------
+	mpDevice = OpenCL::MakeDevice();
+	mpContext = MakeContext(mpDevice);
+
+	mpQueue = std::make_unique<OpenCL::CommandQueue>(mpContext, mpDevice);
+	mpProgram = std::make_unique<OpenCL::Program>(mpContext, mpDevice);
+	// ------------------------------------------------------------------------
 
 	if (mNumberOfBoids > 0)
 	{
@@ -49,7 +49,7 @@ void ABoidsManagerActor::BeginPlay()
 			mBoidsComp->RegisterComponent();
 			AddInstanceComponent(mBoidsComp);
 
-			mBoidsComp->SetStaticMesh(mMesh);
+			mBoidsComp->SetStaticMesh(mpMesh);
 			mBoidsComp->bAutoRebuildTreeOnInstanceChanges = false;
 
 			mInstances.Reserve(mNumberOfBoids);
@@ -79,7 +79,7 @@ void ABoidsManagerActor::BeginPlay()
 				boid->RegisterComponent();
 				AddInstanceComponent(boid);
 
-				boid->SetStaticMesh(mMesh);
+				boid->SetStaticMesh(mpMesh);
 
 				boid->SetWorldLocation(randPos);
 				mBoids.Add(boid);
@@ -93,11 +93,11 @@ void ABoidsManagerActor::BeginPlay()
 
 		// ------------------------------------------------
 
-		const std::string programString(TCHAR_TO_UTF8(*ProgramAsset->SourceCode));
+		const std::string programString(TCHAR_TO_UTF8(*mpProgramAsset->SourceCode));
 		if (!mpProgram->ReadFromString(programString))
 			return;
 
-		const std::string name(TCHAR_TO_UTF8(*KernelName));
+		const std::string name(TCHAR_TO_UTF8(*mKernelName));
 		mpKernel = std::make_unique<OpenCL::Kernel>(*mpProgram, name);
 
 		mpPositionsBuffer = std::make_unique<OpenCL::Buffer>(mpDevice, mpContext, mPositions.GetData(), mNumberOfBoids * sizeof(FVector4f), OpenCL::AccessType::READ_WRITE, OpenCL::MemoryStrategy::STREAM);
@@ -120,6 +120,16 @@ void ABoidsManagerActor::BeginPlay()
 
 void ABoidsManagerActor::BeginDestroy()
 {
+	mpPositionsBuffer = nullptr;
+	mpVelocitiesBuffer = nullptr;
+	mpAccelerationBuffer = nullptr;
+
+	mpKernel = nullptr;
+	mpProgram = nullptr;
+
+	mpContext = nullptr;
+	mpDevice = nullptr;
+
 	Super::BeginDestroy();
 }
 

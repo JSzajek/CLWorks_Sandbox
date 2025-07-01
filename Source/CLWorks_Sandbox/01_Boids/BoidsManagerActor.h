@@ -31,13 +31,13 @@ public:
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Boids")
-	TObjectPtr<UCLProgramAsset> ProgramAsset;
+	TObjectPtr<UCLProgramAsset> mpProgramAsset = nullptr;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Boids")
-	FString KernelName;
+	FString mKernelName;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Boids")
-	UStaticMesh* mMesh;
+	TObjectPtr<UStaticMesh> mpMesh = nullptr;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Boids")
 	int32 mNumberOfBoids = 1;
