@@ -16,6 +16,8 @@ public class CLWorks_Sandbox : ModuleRules
 			"InputCore", 
 			"EnhancedInput",
 
+            "ProceduralMeshComponent",
+
 			"CLWorks"
 		});
 

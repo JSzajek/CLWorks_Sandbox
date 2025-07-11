@@ -1,5 +1,5 @@
 # CLWorks_Sandbox - Unreal Engine CLWorks Test Project
-CLWorks_Sandbox is a sample Unreal Engine project showcasing how to use the CLWorks Plugin for GPU compute and texture operations. It serves as a functional sandbox to demonstrate and validate plugin features.
+CLWorks_Sandbox is a sample Unreal Engine project showcasing how to use the [CLWorks Plugin](https://github.com/JSzajek/CLWorks) for GPU compute and texture operations. It serves as a functional sandbox to demonstrate and validate plugin features.
 
 ## Demonstrates
 - Creating and compiling OpenCL programs at runtime.
@@ -15,6 +15,8 @@ CLWorks_Sandbox is a sample Unreal Engine project showcasing how to use the CLWo
 ### Terrain
 <img src="/Resources/02_Terrain.gif" alt="Infinite Terrain" width="512"/>
 
+### Cables
+<img src="/Resources/03_Rope.gif" alt="Cables" width="512"/>
 
 ## Requirements
  - Unreal Engine 5.0+.
