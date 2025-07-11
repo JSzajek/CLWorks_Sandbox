@@ -124,14 +124,14 @@ void ASimRopeActor::BeginPlay()
 														 mRopeParticles.GetData(), 
 														 mRopeParticles.Num() * sizeof(FRopeParticle), 
 														 OpenCL::AccessType::READ_WRITE, 
-														 OpenCL::MemoryStrategy::ZERO_COPY);
+														 OpenCL::MemoryStrategy::STREAM);
 
 	mpConstraintsBuffer = std::make_unique<OpenCL::Buffer>(mpDevice, 
 														   mpContext, 
 														   mRopeConstraints.GetData(), 
 														   mRopeConstraints.Num() * sizeof(FRopeConstraint), 
 														   OpenCL::AccessType::READ_WRITE, 
-														   OpenCL::MemoryStrategy::ZERO_COPY);
+														   OpenCL::MemoryStrategy::STREAM);
 
 	mpForcesKernel->SetArgument<OpenCL::Buffer>(0, *mpParticlesBuffer);
 
@@ -142,6 +142,9 @@ void ASimRopeActor::BeginPlay()
 	mpEnforceKernel->SetArgument<OpenCL::Buffer>(1, *mpConstraintsBuffer);
 	mpEnforceKernel->SetArgument(2, mRopeConstraints.Num());
 	mpEnforceKernel->SetArgument(3, mRopeResetLength);
+
+	// Start Readback Loop
+	BeginReadback(GetWorld()->GetDeltaSeconds());
 
 	mSimulating = true;
 }
@@ -172,6 +175,46 @@ void ASimRopeActor::TickActor(float DeltaTime,
 	Super::TickActor(DeltaTime, TickType, ThisTickFunction);
 
 	if (mSimulating)
+	{
+		if (bSwapReady.load(std::memory_order_acquire))
+		{
+			{
+				const std::scoped_lock lock(BufferSwapLock);
+				Swap(mRopeParticles, mReadbackRopeParticles);
+			}
+			bSwapReady.store(false, std::memory_order_release);
+
+			UpdateRopeMesh();
+
+			BeginReadback(DeltaTime);
+		}
+
+	}
+
+#if WITH_EDITOR
+	if (!mSimulating && mDrawLine)
+	{
+		UWorld* world = GetWorld();
+		DrawDebugBox(world, mpStartPoint->GetComponentLocation(), FVector(10), FColor::Green);
+		DrawDebugLine(world, mpStartPoint->GetComponentLocation(), mpEndPoint->GetComponentLocation(), FColor::Cyan);
+		DrawDebugBox(world, mpEndPoint->GetComponentLocation(), FVector(10), FColor::Green);
+	}
+#endif
+}
+
+void ASimRopeActor::UpdatePoint(int32 index, const FVector& position)
+{
+	if (mRopeParticles.IsValidIndex(index))
+	{
+		mRopeParticles[index].mPosition = FVector4f(FVector3f(position), 0.0f);
+
+		mpParticlesBuffer->Upload(*mpQueue, mRopeParticles.GetData(), mRopeParticles.Num() * sizeof(FRopeParticle));
+	}
+}
+
+void ASimRopeActor::BeginReadback(double DeltaTime)
+{
+	mReadbackTask = FFunctionGraphTask::CreateAndDispatchWhenReady([DeltaTime, this]()
 	{
 		const FVector4f gravityVector(FVector3f(mGravityForce_MPerS * 100), 0.0f);
 
@@ -212,31 +255,19 @@ void ASimRopeActor::TickActor(float DeltaTime,
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(ASimRopeActor::FetchParticles);
 
-			mpParticlesBuffer->Fetch(*mpQueue, mRopeParticles.GetData(), mRopeParticles.NumBytes());
+			mpParticlesBuffer->FetchWithCallback(*mpQueue, mpReadbackEvent, mRopeParticles.GetData(), mRopeParticles.NumBytes());
+			
+			mpReadbackEvent.SetOnCompleteCallback([this]()
+			{
+				OnReadbackComplete();
+			});
 		}
-
-		UpdateRopeMesh();
-	}
-
-#if WITH_EDITOR
-	if (!mSimulating && mDrawLine)
-	{
-		UWorld* world = GetWorld();
-		DrawDebugBox(world, mpStartPoint->GetComponentLocation(), FVector(10), FColor::Green);
-		DrawDebugLine(world, mpStartPoint->GetComponentLocation(), mpEndPoint->GetComponentLocation(), FColor::Cyan);
-		DrawDebugBox(world, mpEndPoint->GetComponentLocation(), FVector(10), FColor::Green);
-	}
-#endif
+	}, TStatId(), nullptr, ENamedThreads::AnyBackgroundThreadNormalTask);
 }
 
-void ASimRopeActor::UpdatePoint(int32 index, const FVector& position)
+void ASimRopeActor::OnReadbackComplete()
 {
-	if (mRopeParticles.IsValidIndex(index))
-	{
-		mRopeParticles[index].mPosition = FVector4f(FVector3f(position), 0.0f);
-
-		mpParticlesBuffer->Upload(*mpQueue, mRopeParticles.GetData(), mRopeParticles.Num() * sizeof(FRopeParticle));
-	}
+	bSwapReady.store(true, std::memory_order_release);;
 }
 
 void ASimRopeActor::UpdateRopeMesh()
@@ -248,7 +279,6 @@ void ASimRopeActor::UpdateRopeMesh()
 
 
 	const FTransform toWorldTransform = mpRopeMeshComponent->GetComponentToWorld();
-
 
     TArray<FVector> Vertices;
     TArray<int32> Triangles;
@@ -284,8 +314,8 @@ void ASimRopeActor::UpdateRopeMesh()
         // Generate ring vertices
         for (int32 j = 0; j < mRopeSides; ++j)
         {
-            float Angle = 2 * PI * j / mRopeSides;
-            FVector Radial = FMath::Cos(Angle) * Right + FMath::Sin(Angle) * Up;
+            float Angle_Rad = 2.f * PI * j / mRopeSides;
+            FVector Radial = (FMath::Cos(Angle_Rad) * Up) + (FMath::Sin(Angle_Rad) * Right);
             FVector Pos = Center + Radial * mRopeRadius_CM;
 
             Vertices.Add(Pos);
@@ -309,13 +339,13 @@ void ASimRopeActor::UpdateRopeMesh()
             int32 NextNext = NextRingStart + (j + 1) % mRopeSides;
 
             // Two triangles per quad
+            Triangles.Add(Next);
+            Triangles.Add(CurrNext);
             Triangles.Add(Curr);
-            Triangles.Add(CurrNext);
-            Triangles.Add(Next);
 
-            Triangles.Add(Next);
-            Triangles.Add(CurrNext);
             Triangles.Add(NextNext);
+            Triangles.Add(CurrNext);
+            Triangles.Add(Next);
         }
     }
 

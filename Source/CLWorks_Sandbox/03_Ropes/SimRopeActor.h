@@ -6,6 +6,9 @@
 
 #include "CLWorksLib.h"
 
+#include <atomic>
+#include <mutex>
+
 #include "SimRopeActor.generated.h"
 
 
@@ -85,6 +88,9 @@ public:
 #endif
 private:
 	void UpdatePoint(int32 index, const FVector& position);
+	
+	void BeginReadback(double DeltaTime);
+	void OnReadbackComplete();
 
 	void UpdateRopeMesh();
 public:
@@ -144,6 +150,7 @@ public:
 
 	UPROPERTY(VisibleAnywhere, Category = "Rope|Debug")
 	TArray<FRopeParticle> mRopeParticles;
+	TArray<FRopeParticle> mReadbackRopeParticles;
 
 	UPROPERTY(VisibleAnywhere, Category = "Rope|Debug")
 	TArray<FRopeConstraint> mRopeConstraints;
@@ -170,4 +177,10 @@ private:
 
 	std::unique_ptr<OpenCL::Buffer> mpParticlesBuffer = nullptr;
 	std::unique_ptr<OpenCL::Buffer> mpConstraintsBuffer = nullptr;
+
+	OpenCL::Event mpReadbackEvent;
+	FGraphEventRef mReadbackTask;
+
+	std::atomic<bool> bSwapReady = false;
+	std::mutex BufferSwapLock;
 };
