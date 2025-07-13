@@ -215,54 +215,51 @@ void ASimRopeActor::UpdatePoint(int32 index, const FVector& position)
 
 void ASimRopeActor::BeginReadback(double DeltaTime)
 {
-	mReadbackTask = FFunctionGraphTask::CreateAndDispatchWhenReady([DeltaTime, this]()
+	const FVector4f gravityVector(FVector3f(mGravityForce_MPerS * 100), 0.0f);
+
+	if (mpForcesKernel)
 	{
-		const FVector4f gravityVector(FVector3f(mGravityForce_MPerS * 100), 0.0f);
+		TRACE_CPUPROFILER_EVENT_SCOPE(ASimRopeActor::ProcessForces);
 
-		if (mpForcesKernel)
+		mpForcesKernel->SetArgument<FVector4f>(1, gravityVector);
+		mpForcesKernel->SetArgument<float>(2, mDampning);
+		mpForcesKernel->SetArgument<float>(3, DeltaTime);
+
+		size_t globalWork[1] = { mRopeParticles.Num() };
+		mpQueue->EnqueueRange(*mpForcesKernel, 1, globalWork);
+	}
+
+	if (mpConstraintsKernel)
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(ASimRopeActor::ProcessConstraints);
+
+		mpConstraintsKernel->SetArgument<float>(2, mStiffness);
+
+		size_t globalWork[1] = { mRopeConstraints.Num() };
+		for (int32_t i = 0; i < mNumSolverIterations; ++i)
 		{
-			TRACE_CPUPROFILER_EVENT_SCOPE(ASimRopeActor::ProcessForces);
-
-			mpForcesKernel->SetArgument<FVector4f>(1, gravityVector);
-			mpForcesKernel->SetArgument<float>(2, mDampning);
-			mpForcesKernel->SetArgument<float>(3, DeltaTime);
-
-			size_t globalWork[1] = { mRopeParticles.Num() };
-			mpQueue->EnqueueRange(*mpForcesKernel, 1, globalWork);
+			mpQueue->EnqueueRange(*mpConstraintsKernel, 1, globalWork);
 		}
+	}
 
-		if (mpConstraintsKernel)
+	if (mpEnforceKernel)
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(ASimRopeActor::Enforce);
+
+		size_t globalWork[1] = { 1 };
+		mpQueue->EnqueueRange(*mpEnforceKernel, 1, globalWork);
+	}
+
+	if (mpParticlesBuffer)
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(ASimRopeActor::FetchParticles);
+
+		mpParticlesBuffer->FetchAsync(mpQueue, [this]()
 		{
-			TRACE_CPUPROFILER_EVENT_SCOPE(ASimRopeActor::ProcessConstraints);
+			OnReadbackComplete();
 
-			mpConstraintsKernel->SetArgument<float>(2, mStiffness);
-
-			size_t globalWork[1] = { mRopeConstraints.Num() };
-			for (int32_t i = 0; i < mNumSolverIterations; ++i)
-			{
-				mpQueue->EnqueueRange(*mpConstraintsKernel, 1, globalWork);
-			}
-		}
-
-		if (mpEnforceKernel)
-		{
-			TRACE_CPUPROFILER_EVENT_SCOPE(ASimRopeActor::Enforce);
-
-			size_t globalWork[1] = { 1 };
-			mpQueue->EnqueueRange(*mpEnforceKernel, 1, globalWork);
-		}
-
-		if (mpParticlesBuffer)
-		{
-			TRACE_CPUPROFILER_EVENT_SCOPE(ASimRopeActor::FetchParticles);
-
-			mpParticlesBuffer->FetchAsync(mpQueue, [this]()
-			{
-				OnReadbackComplete();
-
-			}, mReadbackRopeParticles.GetData(), mReadbackRopeParticles.NumBytes());
-		}
-	}, TStatId(), nullptr, ENamedThreads::AnyBackgroundThreadNormalTask);
+		}, mReadbackRopeParticles.GetData(), mReadbackRopeParticles.NumBytes());
+	}
 }
 
 void ASimRopeActor::OnReadbackComplete()
