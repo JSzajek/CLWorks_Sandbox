@@ -82,6 +82,7 @@ void ASimRopeActor::BeginPlay()
 	FVector Delta = mpEndPoint->GetComponentLocation() - mpStartPoint->GetComponentLocation();
 
 	mRopeParticles.SetNumZeroed(numPoints);
+	mReadbackRopeParticles.SetNumZeroed(numPoints);
 	mRopeConstraints.SetNumZeroed(numPoints - 1);
 
 	for (uint32_t i = 0; i < numPoints; ++i)
@@ -124,14 +125,14 @@ void ASimRopeActor::BeginPlay()
 														 mRopeParticles.GetData(), 
 														 mRopeParticles.Num() * sizeof(FRopeParticle), 
 														 OpenCL::AccessType::READ_WRITE, 
-														 OpenCL::MemoryStrategy::STREAM);
+														 OpenCL::MemoryStrategy::ZERO_COPY);
 
 	mpConstraintsBuffer = std::make_unique<OpenCL::Buffer>(mpDevice, 
 														   mpContext, 
 														   mRopeConstraints.GetData(), 
 														   mRopeConstraints.Num() * sizeof(FRopeConstraint), 
 														   OpenCL::AccessType::READ_WRITE, 
-														   OpenCL::MemoryStrategy::STREAM);
+														   OpenCL::MemoryStrategy::ZERO_COPY);
 
 	mpForcesKernel->SetArgument<OpenCL::Buffer>(0, *mpParticlesBuffer);
 
@@ -255,12 +256,11 @@ void ASimRopeActor::BeginReadback(double DeltaTime)
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(ASimRopeActor::FetchParticles);
 
-			mpParticlesBuffer->FetchWithCallback(*mpQueue, mpReadbackEvent, mRopeParticles.GetData(), mRopeParticles.NumBytes());
-			
-			mpReadbackEvent.SetOnCompleteCallback([this]()
+			mpParticlesBuffer->FetchAsync(mpQueue, [this]()
 			{
 				OnReadbackComplete();
-			});
+
+			}, mReadbackRopeParticles.GetData(), mReadbackRopeParticles.NumBytes());
 		}
 	}, TStatId(), nullptr, ENamedThreads::AnyBackgroundThreadNormalTask);
 }
