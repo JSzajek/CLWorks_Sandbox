@@ -50,7 +50,9 @@ class UEditorRopePoint : public USceneComponent
 {
 	GENERATED_BODY()
 public:
+#if WITH_EDITOR
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& _event) override;
+#endif
 public:
 	UPROPERTY(EditAnywhere, Category = "Rope Point")
 	bool mIsPinned = false;

@@ -3,6 +3,8 @@
 #include "ProceduralMeshComponent.h"
 
 
+#if WITH_EDITOR
+
 void UEditorRopePoint::PostEditChangeProperty(struct FPropertyChangedEvent& _event)
 {
 	AActor* actor = GetAttachParentActor();
@@ -12,6 +14,7 @@ void UEditorRopePoint::PostEditChangeProperty(struct FPropertyChangedEvent& _eve
 	}
 }
 
+#endif
 
 ASimRopeActor::ASimRopeActor()
 {

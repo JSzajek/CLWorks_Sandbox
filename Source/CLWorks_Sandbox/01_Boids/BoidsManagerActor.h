@@ -27,8 +27,9 @@ public:
 	virtual void TickActor(float DeltaTime, 
 						   enum ELevelTick TickType, 
 						   FActorTickFunction& ThisTickFunction) override;
-
+#if WITH_EDITOR
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+#endif
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Boids")
 	TObjectPtr<UCLProgramAsset> mpProgramAsset = nullptr;

@@ -184,6 +184,8 @@ void ABoidsManagerActor::TickActor(float DeltaTime,
 	}
 }
 
+#if WITH_EDITOR
+
 void ABoidsManagerActor::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 	FName propName = (PropertyChangedEvent.MemberProperty != nullptr) ? PropertyChangedEvent.MemberProperty->GetFName() : NAME_None;
@@ -203,3 +205,5 @@ void ABoidsManagerActor::PostEditChangeProperty(FPropertyChangedEvent& PropertyC
 
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 }
+
+#endif
