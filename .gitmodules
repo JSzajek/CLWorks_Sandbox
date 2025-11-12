@@ -1,3 +1,6 @@
 [submodule "Plugins/CLWorks"]
 	path = Plugins/CLWorks
 	url = https://github.com/JSzajek/CLWorks.git
+[submodule "Plugins/BufferInspector"]
+	path = Plugins/BufferInspector
+	url = https://github.com/JSzajek/BufferInspector.git
