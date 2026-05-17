@@ -3,7 +3,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 
-#include "CLWorksLib.h"
+#include "GPUWorksLib.h"
 
 #include "TextureGenActor.generated.h"
 
@@ -14,6 +14,9 @@ class ATextureGenActor : public AActor
 public:
 	ATextureGenActor();
 
+	virtual void BeginPlay() override;
+	virtual void BeginDestroy() override;
+public:
 	UFUNCTION(CallInEditor, BlueprintCallable, Category = "CL")
 	void ClearTexture();
 
@@ -56,5 +59,6 @@ public:
 	UPROPERTY(EditAnywhere, Category = "CL|Texture")
 	bool mIsAsyncGen = false;
 private:
-	OpenCL::DevicePtr mpDevice;
+	UPROPERTY()
+	TObjectPtr<UGPUContextObject> mpGPUContextObject = nullptr;
 };

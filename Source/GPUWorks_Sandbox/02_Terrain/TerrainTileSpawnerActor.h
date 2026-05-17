@@ -4,11 +4,23 @@
 #include "GameFramework/Actor.h"
 #include "Engine/StaticMesh.h"
 
-#include "CLWorksLib.h"
+#include "GPUWorksLib.h"
 
 #include "TerrainTileSpawnerActor.generated.h"
 
 class UHierarchicalInstancedStaticMeshComponent;
+
+USTRUCT()
+struct FTileData
+{
+	GENERATED_BODY()
+public:
+	UPROPERTY()
+	TObjectPtr<UGPUImageObject> mpGPUImage = nullptr;
+
+	UPROPERTY()
+	TObjectPtr<UTexture> mpTexture = nullptr;
+};
 
 UCLASS()
 class ATerrainTileSpawnerActor : public AActor
@@ -35,7 +47,7 @@ private:
 	FIntPoint WorldToTileCoord(const FVector& WorldLocation) const;
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Terrain")
-	TObjectPtr<UCLProgramAsset> mpProgramAsset = nullptr;
+	TObjectPtr<UGPUProgramAsset> mpProgramAsset = nullptr;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Terrain")
 	FString mKernelName;
@@ -64,18 +76,20 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Terrain")
     float mTileOverlap = 1.0f;
 private:
-	OpenCL::DevicePtr mpDevice = nullptr;
-	OpenCL::ContextPtr mpContext = nullptr;
-
-	std::unique_ptr<OpenCL::Program> mpProgram = nullptr;
-	std::unique_ptr<OpenCL::Kernel> mpKernel = nullptr;
-	std::shared_ptr<OpenCL::CommandQueue> mpQueue = nullptr;
-
-	FVector mLastPlayerLocation;
-
 	UPROPERTY(VisibleAnywhere, Category = "Terrain|Debug")
 	TMap<FIntPoint, TObjectPtr<UStaticMeshComponent>> mActiveTiles;
 
 	UPROPERTY(VisibleAnywhere, Category = "Terrain|Debug")
-	TMap<FIntPoint, TObjectPtr<UTexture>> mTileCoordToTextures;
+	TMap<FIntPoint, FTileData> mTileCoordToTextures;
+
+	FVector mLastPlayerLocation;
+
+	UPROPERTY()
+	TObjectPtr<UGPUContextObject> mpGPUContextObj = nullptr;
+
+	UPROPERTY()
+	TObjectPtr<UGPUProgramObject> mpGPUProgramObj = nullptr;
+
+	UPROPERTY()
+	TObjectPtr<UGPUImageObject> mpGPUImageObj = nullptr;
 };

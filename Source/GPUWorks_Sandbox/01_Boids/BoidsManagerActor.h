@@ -4,7 +4,7 @@
 #include "GameFramework/Actor.h"
 #include "Engine/StaticMesh.h"
 
-#include "CLWorksLib.h"
+#include "GPUWorksLib.h"
 
 #include "BoidsManagerActor.generated.h"
 
@@ -32,7 +32,7 @@ public:
 #endif
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Boids")
-	TObjectPtr<UCLProgramAsset> mpProgramAsset = nullptr;
+	TObjectPtr<UGPUProgramAsset> mpProgramAsset = nullptr;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Boids")
 	FString mKernelName;
@@ -87,19 +87,24 @@ private:
 
 	UPROPERTY()
 	class UHierarchicalInstancedStaticMeshComponent* mBoidsComp;
+
 	TArray<FTransform> mInstances;
 
-	OpenCL::DevicePtr mpDevice = nullptr;
-	OpenCL::ContextPtr mpContext = nullptr;
-
-	std::unique_ptr<OpenCL::Program> mpProgram = nullptr;
-	std::unique_ptr<OpenCL::Kernel> mpKernel = nullptr;
-	std::shared_ptr<OpenCL::CommandQueue> mpQueue = nullptr;
-
-
-	std::unique_ptr<OpenCL::Buffer> mpPositionsBuffer = nullptr;
-	std::unique_ptr<OpenCL::Buffer> mpVelocitiesBuffer = nullptr;
-	std::unique_ptr<OpenCL::Buffer> mpAccelerationBuffer = nullptr;
-
 	FBox mBounds;
+
+	std::shared_ptr<Gpu::ICore> mpGPUCore = nullptr;
+	std::shared_ptr<Gpu::IDevice> mpGPUDevice = nullptr;
+	std::shared_ptr<Gpu::IContext> mpGPUContext = nullptr;
+
+	std::shared_ptr<Gpu::IProgram> mpGPUProgram = nullptr;
+	std::shared_ptr<Gpu::IKernel> mpGPUKernel = nullptr;
+	std::shared_ptr<Gpu::IQueue> mpGPUQueue= nullptr;
+
+	std::shared_ptr<Gpu::IBuffer> mpPositionsBuffer = nullptr;
+	std::shared_ptr<Gpu::IBuffer> mpVelocitiesBuffer = nullptr;
+	std::shared_ptr<Gpu::IBuffer> mpAccelerationBuffer = nullptr;
+
+	std::shared_ptr<Gpu::IEvent> mpFinalGPUEvent = nullptr;
+
+	uint8_t frame = 0;
 };

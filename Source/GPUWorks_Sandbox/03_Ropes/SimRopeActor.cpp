@@ -42,39 +42,50 @@ void ASimRopeActor::BeginPlay()
 {
 	Super::BeginPlay();
 
-	// OpenCL Dependencies Initialization -------------------------------------
-	mpDevice = OpenCL::MakeDevice();
-	mpContext = MakeContext(mpDevice);
-
-	mpQueue = std::make_unique<OpenCL::CommandQueue>(mpContext, mpDevice);
-	mpForcesProgram = std::make_unique<OpenCL::Program>(mpContext, mpDevice);
-	mpConstraintsProgram = std::make_unique<OpenCL::Program>(mpContext, mpDevice);
-	mpEnforceProgram = std::make_unique<OpenCL::Program>(mpContext, mpDevice);
-	// ------------------------------------------------------------------------
+	mpGPUContextObj = NewObject<UGPUContextObject>();
+	if (mpGPUContextObj)
+	{
+		mpGPUContextObj->Initialize(EGPUBackend::OpenCL);
+		mpGPUContextObj->CreateDefaultQueue();
+	}
 
 	// Forces Program ---------------------------------------------------------
-	const std::string forceProgramString(TCHAR_TO_UTF8(*mpForcesProgramAsset->SourceCode));
-	if (!mpForcesProgram->ReadFromString(forceProgramString))
+	mpForcesProgram = NewObject<UGPUProgramObject>();
+	mpForcesProgram->BuildFromAsset(mpGPUContextObj, mpForcesProgramAsset);
+	if (!mpForcesProgram->HasKernel(mForcesKernelName))
+	{
+		mpForcesProgram->ConditionalBeginDestroy();
+		mpForcesProgram = nullptr;
 		return;
-
-	mpForcesKernel = std::make_unique<OpenCL::Kernel>(*mpForcesProgram, TCHAR_TO_UTF8(*mForcesKernelName));
+	}
+	mpForcesProgram->SetKernel(mForcesKernelName);
 	// ------------------------------------------------------------------------
 
 	// Constraints Program ----------------------------------------------------
-	const std::string constraintsProgramString(TCHAR_TO_UTF8(*mpConstraintsProgramAsset->SourceCode));
-	if (!mpConstraintsProgram->ReadFromString(constraintsProgramString))
+	mpConstraintsProgram = NewObject<UGPUProgramObject>();
+	mpConstraintsProgram->BuildFromAsset(mpGPUContextObj, mpConstraintsProgramAsset);
+	if (!mpConstraintsProgram->HasKernel(mConstraintsKernelName))
+	{
+		mpConstraintsProgram->ConditionalBeginDestroy();
+		mpConstraintsProgram = nullptr;
 		return;
-
-	mpConstraintsKernel = std::make_unique<OpenCL::Kernel>(*mpConstraintsProgram, TCHAR_TO_UTF8(*mConstraintsKernelName));
+	}
+	mpConstraintsProgram->SetKernel(mConstraintsKernelName);
 	// ------------------------------------------------------------------------
 
 	// Enforce Program --------------------------------------------------------
-	const std::string enforceProgramString(TCHAR_TO_UTF8(*mpEnforceProgramAsset->SourceCode));
-	if (!mpEnforceProgram->ReadFromString(enforceProgramString))
+	mpEnforceProgram = NewObject<UGPUProgramObject>();
+	mpEnforceProgram->BuildFromAsset(mpGPUContextObj, mpEnforceProgramAsset);
+	if (!mpEnforceProgram->HasKernel(mEnforceKernelName))
+	{
+		mpEnforceProgram->ConditionalBeginDestroy();
+		mpEnforceProgram = nullptr;
 		return;
-
-	mpEnforceKernel = std::make_unique<OpenCL::Kernel>(*mpEnforceProgram, TCHAR_TO_UTF8(*mEnforceKernelName));
+	}
+	mpEnforceProgram->SetKernel(mEnforceKernelName);
 	// ------------------------------------------------------------------------
+
+	mpQueue = mpGPUContextObj->GetContext()->CreateQueue();
 
 	mRopeResetLength = 0;
 
@@ -123,29 +134,24 @@ void ASimRopeActor::BeginPlay()
 	mpStartPoint->mIndex = 0;
 	mpEndPoint->mIndex = numPoints - 1;
 
-	mpParticlesBuffer = std::make_unique<OpenCL::Buffer>(mpDevice, 
-														 mpContext, 
-														 mRopeParticles.GetData(), 
-														 mRopeParticles.Num() * sizeof(FRopeParticle), 
-														 OpenCL::AccessType::READ_WRITE, 
-														 OpenCL::MemoryStrategy::ZERO_COPY);
+	mpParticlesBuffer = NewObject<UGPUBufferObject>();
+	mpParticlesBuffer->Initialize(mpGPUContextObj, mRopeParticles.Num() * sizeof(FRopeParticle));
+	mpParticlesBuffer->UploadRaw(mpGPUContextObj, mRopeParticles.GetData(), mRopeParticles.Num() * sizeof(FRopeParticle));
 
-	mpConstraintsBuffer = std::make_unique<OpenCL::Buffer>(mpDevice, 
-														   mpContext, 
-														   mRopeConstraints.GetData(), 
-														   mRopeConstraints.Num() * sizeof(FRopeConstraint), 
-														   OpenCL::AccessType::READ_WRITE, 
-														   OpenCL::MemoryStrategy::ZERO_COPY);
 
-	mpForcesKernel->SetArgument<OpenCL::Buffer>(0, *mpParticlesBuffer);
+	mpConstraintsBuffer = NewObject<UGPUBufferObject>();
+	mpConstraintsBuffer->Initialize(mpGPUContextObj, mRopeConstraints.Num() * sizeof(FRopeConstraint));
+	mpConstraintsBuffer->UploadRaw(mpGPUContextObj, mRopeConstraints.GetData(), mRopeConstraints.Num() * sizeof(FRopeConstraint));
 
-	mpConstraintsKernel->SetArgument<OpenCL::Buffer>(0, *mpParticlesBuffer);
-	mpConstraintsKernel->SetArgument<OpenCL::Buffer>(1, *mpConstraintsBuffer);
+	mpForcesProgram->SetBufferArg(0, mpParticlesBuffer);
 
-	mpEnforceKernel->SetArgument<OpenCL::Buffer>(0, *mpParticlesBuffer);
-	mpEnforceKernel->SetArgument<OpenCL::Buffer>(1, *mpConstraintsBuffer);
-	mpEnforceKernel->SetArgument(2, mRopeConstraints.Num());
-	mpEnforceKernel->SetArgument(3, mRopeResetLength);
+	mpConstraintsProgram->SetBufferArg(0, mpParticlesBuffer);
+	mpConstraintsProgram->SetBufferArg(1, mpConstraintsBuffer);
+
+	mpEnforceProgram->SetBufferArg(0, mpParticlesBuffer);
+	mpEnforceProgram->SetBufferArg(1, mpConstraintsBuffer);
+	mpEnforceProgram->SetIntArg(2, mRopeConstraints.Num());
+	mpEnforceProgram->SetFloatArg(3, mRopeResetLength);
 
 	// Start Readback Loop
 	BeginReadback(GetWorld()->GetDeltaSeconds());
@@ -160,14 +166,9 @@ void ASimRopeActor::BeginDestroy()
 	mpParticlesBuffer = nullptr;
 	mpConstraintsBuffer = nullptr;
 
-	mpConstraintsKernel = nullptr;
 	mpConstraintsProgram = nullptr;
-
-	mpForcesKernel = nullptr;
 	mpForcesProgram = nullptr;
-
-	mpContext = nullptr;
-	mpDevice = nullptr;
+	mpEnforceProgram = nullptr;
 
 	Super::BeginDestroy();
 }
@@ -212,7 +213,7 @@ void ASimRopeActor::UpdatePoint(int32 index, const FVector& position)
 	{
 		mRopeParticles[index].mPosition = FVector4f(FVector3f(position), 0.0f);
 
-		mpParticlesBuffer->Upload(*mpQueue, mRopeParticles.GetData(), mRopeParticles.Num() * sizeof(FRopeParticle));
+		mpParticlesBuffer->UploadRaw(mpGPUContextObj, mRopeParticles.GetData(), mRopeParticles.Num() * sizeof(FRopeParticle));
 	}
 }
 
@@ -220,48 +221,52 @@ void ASimRopeActor::BeginReadback(double DeltaTime)
 {
 	const FVector4f gravityVector(FVector3f(mGravityForce_MPerS * 100), 0.0f);
 
-	if (mpForcesKernel)
+	if (mpForcesProgram)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(ASimRopeActor::ProcessForces);
 
-		mpForcesKernel->SetArgument<FVector4f>(1, gravityVector);
-		mpForcesKernel->SetArgument<float>(2, mDampning);
-		mpForcesKernel->SetArgument<float>(3, DeltaTime);
+		mpForcesProgram->SetVector4fArg(1, gravityVector);
+		mpForcesProgram->SetFloatArg(2, mDampning);
+		mpForcesProgram->SetFloatArg(3, DeltaTime);
 
-		size_t globalWork[1] = { mRopeParticles.Num() };
-		mpQueue->EnqueueRange(*mpForcesKernel, 1, globalWork);
+		Gpu::DispatchDescription dispatchDesc;
+		dispatchDesc.Dim = 1;
+		dispatchDesc.Global[0] = mRopeParticles.Num();
+		mpQueue->Dispatch(*mpForcesProgram->GetKernel(), dispatchDesc);
 	}
 
-	if (mpConstraintsKernel)
+	if (mpConstraintsProgram)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(ASimRopeActor::ProcessConstraints);
 
-		mpConstraintsKernel->SetArgument<float>(2, mStiffness);
+		mpConstraintsProgram->SetFloatArg(2, mStiffness);
 
-		size_t globalWork[1] = { mRopeConstraints.Num() };
-		for (int32_t i = 0; i < mNumSolverIterations; ++i)
-		{
-			mpQueue->EnqueueRange(*mpConstraintsKernel, 1, globalWork);
-		}
+		Gpu::DispatchDescription dispatchDesc;
+		dispatchDesc.Dim = 1;
+		dispatchDesc.Global[0] = mRopeConstraints.Num();
+		mpQueue->Dispatch(*mpConstraintsProgram->GetKernel(), dispatchDesc);
 	}
 
-	if (mpEnforceKernel)
+	if (mpEnforceProgram)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(ASimRopeActor::Enforce);
 
-		size_t globalWork[1] = { 1 };
-		mpQueue->EnqueueRange(*mpEnforceKernel, 1, globalWork);
+		Gpu::DispatchDescription dispatchDesc;
+		dispatchDesc.Dim = 1;
+		dispatchDesc.Global[0] = 1;
+		mpQueue->Dispatch(*mpEnforceProgram->GetKernel(), dispatchDesc);
 	}
 
 	if (mpParticlesBuffer)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(ASimRopeActor::FetchParticles);
 
-		mpParticlesBuffer->FetchAsync(mpQueue, [this]()
+		mpReadbackEvent = mpParticlesBuffer->GetBuffer()->DownloadAsync(*mpQueue, mReadbackRopeParticles.GetData(), mReadbackRopeParticles.NumBytes());
+
+		mpReadbackEvent->SetCompletionCallback([this]()
 		{
 			OnReadbackComplete();
-
-		}, mReadbackRopeParticles.GetData(), mReadbackRopeParticles.NumBytes());
+		});
 	}
 }
 

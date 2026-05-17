@@ -2,9 +2,9 @@
 
 using UnrealBuildTool;
 
-public class CLWorks_Sandbox : ModuleRules
+public class GPUWorks_Sandbox : ModuleRules
 {
-	public CLWorks_Sandbox(ReadOnlyTargetRules Target) : base(Target)
+	public GPUWorks_Sandbox(ReadOnlyTargetRules Target) : base(Target)
 	{
 		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
 	
@@ -18,7 +18,7 @@ public class CLWorks_Sandbox : ModuleRules
 
             "ProceduralMeshComponent",
 
-			"CLWorks"
+			"GPUWorks"
 		});
 
 		PrivateDependencyModuleNames.AddRange(new string[] {  });

@@ -1,12 +1,12 @@
-# CLWorks_Sandbox - Unreal Engine CLWorks Test Project
-CLWorks_Sandbox is a sample Unreal Engine project showcasing how to use the [CLWorks Plugin](https://github.com/JSzajek/CLWorks) for GPU compute and texture operations. It serves as a functional sandbox to demonstrate and validate plugin features.
+# GPUWorks_Sandbox - Unreal Engine CLWorks Test Project
+GPUWorks_Sandbox is a sample Unreal Engine project showcasing how to use the [GPUWorks Plugin](https://github.com/JSzajek/GPUWorks) for GPU compute and texture operations. It serves as a functional sandbox to demonstrate and validate plugin features.
 
 ## Demonstrates
-- Creating and compiling OpenCL programs at runtime.
-- Uploading data from UE to OpenCL buffers.
-- Executing OpenCL kernels and reading result back.
-- Writing to OpenCL images and conversion to UTextures.
-- Real-time updates to materials or UI from OpenCL results.
+- Creating and compiling GPU programs at runtime.
+- Uploading data from UE to GPU buffers.
+- Executing GPU kernels and reading result back.
+- Writing to GPU images and conversion to UTextures.
+- Real-time updates to materials or UI from GPU results.
 
 ## Examples
 ### Boids
@@ -20,7 +20,7 @@ CLWorks_Sandbox is a sample Unreal Engine project showcasing how to use the [CLW
 
 ## Requirements
  - Unreal Engine 5.0+.
- - CLWorks Plugin.
+ - GPUWorks Plugin.
  - OpenCL 1.2 or later (avaliable via CPU or GPU drivers).
  - C++20 compatible compiler.
 

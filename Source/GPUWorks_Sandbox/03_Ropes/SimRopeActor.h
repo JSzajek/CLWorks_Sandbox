@@ -4,7 +4,7 @@
 #include "GameFramework/Actor.h"
 #include "Engine/StaticMesh.h"
 
-#include "CLWorksLib.h"
+#include "GPUWorksLib.h"
 
 #include <atomic>
 #include <mutex>
@@ -13,7 +13,6 @@
 
 
 class UProceduralMeshComponent;
-
 
 USTRUCT()
 struct FRopeParticle
@@ -36,13 +35,13 @@ struct FRopeConstraint
 	GENERATED_BODY()
 public:
 	UPROPERTY(VisibleAnywhere)
-	int32 mPoint1;
+	int32 mPoint1 = 0;
 
 	UPROPERTY(VisibleAnywhere)
-	int32 mPoint2;
+	int32 mPoint2 = 0;
 
 	UPROPERTY(VisibleAnywhere)
-	float mRestLength;
+	float mRestLength = 0;
 };
 
 UCLASS()
@@ -97,19 +96,19 @@ private:
 	void UpdateRopeMesh();
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rope")
-	TObjectPtr<UCLProgramAsset> mpForcesProgramAsset = nullptr;
+	TObjectPtr<UGPUProgramAsset> mpForcesProgramAsset = nullptr;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rope")
 	FString mForcesKernelName;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rope")
-	TObjectPtr<UCLProgramAsset> mpConstraintsProgramAsset = nullptr;
+	TObjectPtr<UGPUProgramAsset> mpConstraintsProgramAsset = nullptr;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rope")
 	FString mConstraintsKernelName;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rope")
-	TObjectPtr<UCLProgramAsset> mpEnforceProgramAsset = nullptr;
+	TObjectPtr<UGPUProgramAsset> mpEnforceProgramAsset = nullptr;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rope")
 	FString mEnforceKernelName;
@@ -162,26 +161,25 @@ public:
 private:
 	bool mSimulating = false;
 
-	OpenCL::DevicePtr mpDevice = nullptr;
-	OpenCL::ContextPtr mpContext = nullptr;
+	UPROPERTY()
+	TObjectPtr<UGPUContextObject> mpGPUContextObj = nullptr;
 
-	std::unique_ptr<OpenCL::Program> mpForcesProgram = nullptr;
-	std::unique_ptr<OpenCL::Kernel> mpForcesKernel = nullptr;
+	UPROPERTY()
+	TObjectPtr<UGPUProgramObject> mpForcesProgram = nullptr;
 
-	std::unique_ptr<OpenCL::Program> mpConstraintsProgram = nullptr;
-	std::unique_ptr<OpenCL::Kernel> mpConstraintsKernel = nullptr;
+	UPROPERTY()
+	TObjectPtr<UGPUProgramObject> mpConstraintsProgram = nullptr;
 
-	std::unique_ptr<OpenCL::Program> mpEnforceProgram = nullptr;
-	std::unique_ptr<OpenCL::Kernel> mpEnforceKernel = nullptr;
+	UPROPERTY()
+	TObjectPtr<UGPUProgramObject> mpEnforceProgram = nullptr;
 
-	std::shared_ptr<OpenCL::CommandQueue> mpQueue = nullptr;
+	std::shared_ptr<Gpu::IQueue> mpQueue = nullptr;
 
+	UPROPERTY()
+	TObjectPtr<UGPUBufferObject> mpParticlesBuffer = nullptr;
+	TObjectPtr<UGPUBufferObject> mpConstraintsBuffer = nullptr;
 
-	std::unique_ptr<OpenCL::Buffer> mpParticlesBuffer = nullptr;
-	std::unique_ptr<OpenCL::Buffer> mpConstraintsBuffer = nullptr;
-
-	OpenCL::Event mpReadbackEvent;
-	FGraphEventRef mReadbackTask;
+	std::shared_ptr<Gpu::IEvent> mpReadbackEvent = nullptr;
 
 	std::atomic<bool> bSwapReady = false;
 	std::mutex BufferSwapLock;

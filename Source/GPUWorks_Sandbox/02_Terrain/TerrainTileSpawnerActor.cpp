@@ -7,28 +7,32 @@
 ATerrainTileSpawnerActor::ATerrainTileSpawnerActor()
 {
 	PrimaryActorTick.bCanEverTick = true;
+
+	RootComponent = CreateDefaultSubobject<USceneComponent>(TEXT("Root"));
 }
 
 void ATerrainTileSpawnerActor::BeginPlay()
 {
 	Super::BeginPlay();
 
-	// OpenCL Dependencies Initialization -------------------------------------
-	mpDevice = OpenCL::MakeDevice();
-	mpContext = MakeContext(mpDevice);
+	mpGPUContextObj = NewObject<UGPUContextObject>();
+	if (mpGPUContextObj)
+	{
+		mpGPUContextObj->Initialize(EGPUBackend::OpenCL);
+		mpGPUContextObj->CreateDefaultQueue();
+	}
 
-	mpQueue = std::make_unique<OpenCL::CommandQueue>(mpContext, mpDevice);
-	mpProgram = std::make_unique<OpenCL::Program>(mpContext, mpDevice);
-	// ------------------------------------------------------------------------
+	mpGPUProgramObj = NewObject<UGPUProgramObject>();
+	mpGPUProgramObj->BuildFromAsset(mpGPUContextObj, mpProgramAsset);
 
-
-	const std::string programString(TCHAR_TO_UTF8(*mpProgramAsset->SourceCode));
-	if (!mpProgram->ReadFromString(programString))
+	if (!mpGPUProgramObj->HasKernel(mKernelName))
+	{
+		mpGPUProgramObj->ConditionalBeginDestroy();
+		mpGPUProgramObj = nullptr;
 		return;
+	}
 
-	const std::string name(TCHAR_TO_UTF8(*mKernelName));
-	mpKernel = std::make_unique<OpenCL::Kernel>(*mpProgram, name);
-
+	mpGPUProgramObj->SetKernel(mKernelName);
 
 	mLastPlayerLocation = FVector::ZeroVector;
 
@@ -37,13 +41,25 @@ void ATerrainTileSpawnerActor::BeginPlay()
 
 void ATerrainTileSpawnerActor::BeginDestroy()
 {
-	mpKernel = nullptr;
-	mpProgram = nullptr;
-
-	mpContext = nullptr;
-	mpDevice = nullptr;
-	
 	Super::BeginDestroy();
+
+	if (mpGPUContextObj)
+	{
+		mpGPUContextObj->ConditionalBeginDestroy();
+		mpGPUContextObj = nullptr;
+	}
+
+	if (mpGPUProgramObj)
+	{
+		mpGPUProgramObj->ConditionalBeginDestroy();
+		mpGPUProgramObj = nullptr;
+	}
+
+	if (mpGPUImageObj)
+	{
+		mpGPUImageObj->ConditionalBeginDestroy();
+		mpGPUImageObj = nullptr;
+	}
 }
 
 void ATerrainTileSpawnerActor::TickActor(float DeltaTime, ELevelTick TickType, FActorTickFunction& ThisTickFunction)
@@ -98,23 +114,28 @@ void ATerrainTileSpawnerActor::UpdateTiles()
 
 				// Create Elevation Map -----------------------------------------------------------
 				uint32_t mapSize = mElevationMapSize + (mMapBuffer * 2);
-				OpenCL::Image img = OpenCL::Image(mpContext,
-												  mpDevice,
-												  mapSize, 
-												  mapSize,
-												  1,
-												  OpenCL::Image::Format::R8, 
-												  OpenCL::Image::Type::Texture2D);
 
-				mpKernel->SetArgument(0, img.Get());
-				mpKernel->SetArgument(1, FVector2f(Coord.X, Coord.Y));
-				mpKernel->SetArgument(2, FVector2f(mMapBuffer, mMapBuffer)); // Buffer size
+				FTileData data;
 
-				size_t global_work_size[2] = { mapSize, mapSize };
-				mpQueue->EnqueueRange(*mpKernel, 2, global_work_size);
+				data.mpGPUImage = NewObject<UGPUImageObject>();
+				data.mpGPUImage->CreateImage2D(mpGPUContextObj,
+											 mapSize,
+											 mapSize,
+											 EGpuPixelFormat::R8);
 
-				UTexture2D* texture = img.CreateUTexture2D(*mpQueue, false, false);
 
+
+				mpGPUProgramObj->SetImageArg(0, data.mpGPUImage);
+				mpGPUProgramObj->SetVector2fArg(1, FVector2f(Coord.X, Coord.Y));
+				mpGPUProgramObj->SetVector2fArg(2, FVector2f(mMapBuffer, mMapBuffer)); // Buffer size
+
+				Gpu::DispatchDescription dispatchDesc;
+				dispatchDesc.Dim = 2;
+				dispatchDesc.Global[0] = mapSize;
+				dispatchDesc.Global[1] = mapSize;
+				mpGPUContextObj->GetDefaultQueue()->Dispatch(*mpGPUProgramObj->GetKernel(), dispatchDesc);
+
+				data.mpTexture = data.mpGPUImage->CreateTexture2D(mpGPUContextObj, true);
 				if (NewTile)
 				{
 					if (UMaterialInterface* material = NewTile->GetMaterial(0))
@@ -127,14 +148,16 @@ void ATerrainTileSpawnerActor::UpdateTiles()
 						mat->SetScalarParameterValue("Buffer_Size", mMapBuffer);
 						mat->SetScalarParameterValue("Map_Size", mElevationMapSize + mElevationMapSize);
 
-						if (texture)
-							mat->SetTextureParameterValue("Elevation Map", texture);
+						if (data.mpTexture)
+						{
+							mat->SetTextureParameterValue("Elevation Map", data.mpTexture);
+						}
 
 						NewTile->SetMaterial(0, mat);
 					}
 				}
 
-				mTileCoordToTextures.Add(Coord, texture);
+				mTileCoordToTextures.Add(Coord, data);
 				mActiveTiles.Add(Coord, NewTile);
 				// --------------------------------------------------------------------------------
 			}

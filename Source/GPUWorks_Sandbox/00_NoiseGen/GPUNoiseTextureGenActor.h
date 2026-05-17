@@ -3,16 +3,18 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 
-#include "CLWorksLib.h"
+#include "GPUWorksLib.h"
 
-#include "CLNoiseTextureGenActor.generated.h"
+#include <memory>
+
+#include "GPUNoiseTextureGenActor.generated.h"
 
 UCLASS()
-class ACLNoiseTextureGenActor : public AActor
+class AGPUNoiseTextureGenActor : public AActor
 {
 	GENERATED_BODY()
 public:
-	ACLNoiseTextureGenActor();
+	AGPUNoiseTextureGenActor();
 
 	virtual void BeginPlay() override;
 	virtual void BeginDestroy() override;
@@ -28,7 +30,7 @@ public:
 						   FActorTickFunction& ThisTickFunction) override;
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CLNoise")
-	TObjectPtr<UCLProgramAsset> mpProgramAsset = nullptr;
+	TObjectPtr<UGPUProgramAsset> mpProgramAsset = nullptr;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CLNoise")
 	FString mKernelName;
@@ -44,12 +46,12 @@ public:
 private:
 	TObjectPtr<UMaterialInstanceDynamic> mpDynamicMaterial = nullptr;
 
-	OpenCL::DevicePtr mpDevice = nullptr;
-	OpenCL::ContextPtr mpContext = nullptr;
+	UPROPERTY()
+	TObjectPtr<UGPUContextObject> mpGPUContextObj = nullptr;
 
-	std::unique_ptr<OpenCL::Program> mpProgram = nullptr;
-	std::unique_ptr<OpenCL::Kernel> mpKernel = nullptr;
-	std::shared_ptr<OpenCL::CommandQueue> mpQueue = nullptr;
+	UPROPERTY()
+	TObjectPtr<UGPUProgramObject> mpGPUProgramObj = nullptr;
 
-	std::unique_ptr<OpenCL::Image> mpImage = nullptr;
+	UPROPERTY()
+	TObjectPtr<UGPUImageObject> mpGPUImageObj = nullptr;
 };
