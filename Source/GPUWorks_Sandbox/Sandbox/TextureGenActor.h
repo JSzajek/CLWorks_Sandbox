@@ -14,8 +14,7 @@ class ATextureGenActor : public AActor
 public:
 	ATextureGenActor();
 
-	virtual void BeginPlay() override;
-	virtual void BeginDestroy() override;
+	virtual void PostLoad() override;
 public:
 	UFUNCTION(CallInEditor, BlueprintCallable, Category = "CL")
 	void ClearTexture();
